@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Sesli Sayaç (Copy)</title>
+<title>Sesli Sayaç</title>
 <link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -52,11 +52,11 @@ h1 {
 .sub { margin: 0 0 16px; color: var(--muted); font-size: 0.95rem; }
 
 .tabs {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  display: flex; gap: 6px; overflow-x: auto;
   background: var(--track); padding: 5px; border-radius: 16px; margin-bottom: 18px;
 }
 .tab {
-  min-height: 46px; border: 0; border-radius: 12px; background: transparent;
+  flex: 1 0 auto; padding: 0 12px; min-height: 46px; border: 0; border-radius: 12px; background: transparent;
   color: var(--muted); font: inherit; font-weight: 700; font-size: 0.98rem; cursor: pointer;
 }
 .tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
@@ -75,6 +75,12 @@ h1 {
 .bar > i { display: block; height: 100%; width: 0%; background: var(--accent); border-radius: 6px; transition: width .25s ease; }
 .barText { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin: 0 2px; }
 .extra { margin: 8px 2px 0; font-size: 0.9rem; color: var(--muted); }
+.tapbtn {
+  display: block; width: 100%; margin-top: 14px; min-height: 120px; border-radius: 22px;
+  border: 2px dashed var(--accent); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 1.3rem; font-weight: 700; cursor: pointer;
+}
+.tapbtn:active { background: var(--track); }
 
 .tlist { display: grid; gap: 10px; }
 .tcard {
@@ -169,6 +175,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     <button class="tab" role="tab" type="button" data-m="free" aria-selected="true">Serbest</button>
     <button class="tab" role="tab" type="button" data-m="tes" aria-selected="false">Tesbihat</button>
     <button class="tab" role="tab" type="button" data-m="tev" aria-selected="false">Tevhid</button>
+    <button class="tab" role="tab" type="button" data-m="slv" aria-selected="false">SLVT</button>
+    <button class="tab" role="tab" type="button" data-m="ist" aria-selected="false">İST</button>
   </div>
 
   <section id="viewCounter" aria-label="Sayaç">
@@ -185,6 +193,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barWrap"><i id="barFill"></i></div>
     <div class="barText"><span id="pct">%0</span><span id="targetText">Hedef: 1000</span></div>
     <div class="extra" id="extra" hidden></div>
+    <button class="tapbtn" id="tap" type="button">Dokun, say (+1)</button>
   </section>
 
   <section id="viewTes" aria-label="Tesbihat" hidden>
@@ -198,6 +207,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     <span class="dot" aria-hidden="true"></span><span id="micText">Dinlemeyi başlat</span>
   </button>
   <div class="live" id="live" aria-live="off"></div>
+  <div class="extra" id="dbg" style="margin-top:0"></div>
   <div class="msg" id="msg" role="alert"></div>
 
   <div class="row" id="row">
@@ -231,7 +241,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     </div>
   </section>
 
-  <p class="hint">Tesbihatta her biri ayrı sayılır; sondan bir önce kısa bir ding, tamamlanınca çan sesi gelir. Tevhid sayacında her 99'da (99, 199, 299…) ding gelir; yüzüncüyü "Muhammedürrasûlullah" ile tamamlayınca çan çalar. Ses tanıma tarayıcıya bağlıdır; yanlış sayarsa −1 / +1 ile düzeltin.</p>
+  <p class="hint">Tesbihatta her biri ayrı sayılır; sondan bir önce kısa bir ding, tamamlanınca çan sesi gelir. Tevhid sayacında her 99'da (99, 199, 299…) ding gelir; yüzüncüyü "Muhammedürrasûlullah" ile tamamlayınca çan çalar. SLVT ve İST de 99'da ding, 100'de çan çalar. Serbest, Tevhid, SLVT ve İST sayfalarındaki büyük "Dokun" düğmesiyle, tesbihatta kartlara dokunarak da elle sayabilirsiniz. Ses tanıma tarayıcıya bağlıdır; yanlış sayarsa −1 / +1 ile düzeltin.</p>
 </main>
 
 <script>
@@ -250,38 +260,45 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     date: today(), mode: "free", sound: true,
     free: { count: 0, target: 1000, word: "Allah", step: 100 },
     tes:  { s: 0, h: 0, e: 0, target: 33 },
-    tev:  { count: 0, target: 100 }
+    tev:  { count: 0, target: 100 },
+    slv:  { count: 0, target: 100 },
+    ist:  { count: 0, target: 100 }
   };
   var TES = [
     { k: "s", name: "Sübhanallah" },
     { k: "h", name: "Elhamdülillah" },
     { k: "e", name: "Allahu Ekber" }
   ];
-  var TITLES = { tes: "Tesbihat", tev: "Lâ ilâhe illallah" };
+  var TITLES = { tes: "Tesbihat", tev: "Lâ ilâhe illallah", slv: "Salavat", ist: "İstiğfar" };
   var SUBS = {
     free: "Söylediğiniz kelimeyi sayar. Sayaç her gün sıfırdan başlar.",
     tes: "Sübhanallah, Elhamdülillah ve Allahu Ekber ayrı ayrı sayılır.",
-    tev: "Her 99'da uyarı gelir; yüzüncüyü Muhammedürrasûlullah ile tamamlayın."
+    tev: "Her 99'da uyarı gelir; yüzüncüyü Muhammedürrasûlullah ile tamamlayın.",
+    slv: "Salavat getirdikçe sayar. Her 99'da ding, 100'de çan sesi gelir.",
+    ist: "Estağfirullah dedikçe sayar. Her 99'da ding, 100'de çan sesi gelir."
   };
 
   function resetCounts() {
-    state.free.count = 0; state.tev.count = 0;
+    state.free.count = 0; state.tev.count = 0; state.slv.count = 0; state.ist.count = 0;
     state.tes.s = 0; state.tes.h = 0; state.tes.e = 0;
   }
   function load() {
     var s = null;
     try { var raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch (e) {}
     if (s && typeof s === "object") {
-      if (s.mode === "free" || s.mode === "tes" || s.mode === "tev") state.mode = s.mode;
+      if (s.mode === "free" || s.mode === "tes" || s.mode === "tev" || s.mode === "slv" || s.mode === "ist") state.mode = s.mode;
       if (typeof s.sound === "boolean") state.sound = s.sound;
-      var f = s.free || {}, t = s.tes || {}, v = s.tev || {};
+      var f = s.free || {}, t = s.tes || {}, v = s.tev || {}, sl = s.slv || {}, ig = s.ist || {};
       state.free.target = posInt(f.target, 1000);
       if (typeof f.word === "string" && f.word.trim()) state.free.word = f.word.trim();
       state.free.step = (f.step === 0 || f.step === 33 || f.step === 100) ? f.step : 100;
       state.tes.target = posInt(t.target, 33);
       state.tev.target = posInt(v.target, 100);
+      state.slv.target = posInt(sl.target, 100);
+      state.ist.target = posInt(ig.target, 100);
       if (s.date === today()) {
         state.free.count = nonNeg(f.count); state.tev.count = nonNeg(v.count);
+        state.slv.count = nonNeg(sl.count); state.ist.count = nonNeg(ig.count);
         state.tes.s = nonNeg(t.s); state.tes.h = nonNeg(t.h); state.tes.e = nonNeg(t.e);
       }
       return;
@@ -347,7 +364,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     pendingKind = null;
   }
 
-  function mainObj() { return state.mode === "tev" ? state.tev : state.free; }
+  function mainObj() { return state.mode === "tev" ? state.tev : state.mode === "slv" ? state.slv : state.mode === "ist" ? state.ist : state.free; }
 
   function addMain(n) {
     rollDate();
@@ -358,7 +375,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   }
   function mainFeedback(o, from, to) {
     var tev = state.mode === "tev";
-    var step = tev ? 100 : o.step;
+    var step = state.mode === "free" ? o.step : 100;
     var kind = null, msg = "", v;
     if (o.target > 0 && from < o.target && to >= o.target) { kind = "fanfare"; msg = "Hedef tamam: " + fmt(o.target); }
     if (step > 0) {
@@ -412,9 +429,9 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   }
 
   /* ---------- Görünüm ---------- */
-  var CHIPS = { free: [33, 99, 100, 500, 1000], tes: [33, 34, 100], tev: [100, 300, 500, 1000] };
+  var CHIPS = { free: [33, 99, 100, 500, 1000], tes: [33, 34, 100], tev: [100, 300, 500, 1000], slv: [100, 300, 500, 1000], ist: [100, 300, 500, 1000] };
 
-  function targetObj() { return state.mode === "tes" ? state.tes : (state.mode === "tev" ? state.tev : state.free); }
+  function targetObj() { return state.mode === "tes" ? state.tes : mainObj(); }
 
   function buildTes() {
     $("tlist").innerHTML = TES.map(function (x) {
@@ -466,8 +483,8 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
       $("barWrap").setAttribute("aria-valuenow", String(pct));
       $("remainBox").classList.toggle("done", done);
       $("remainLabel").textContent = done ? (o.count > o.target ? "Hedef tamam, fazla: " + fmt(o.count - o.target) : "Hedef tamam") : "Kalan";
-      $("extra").hidden = (m !== "tev");
-      if (m === "tev") $("extra").textContent = "Tamamlanan yüzlük: " + fmt(Math.floor(o.count / 100));
+      $("extra").hidden = (m === "free");
+      if (m !== "free") $("extra").textContent = "Tamamlanan yüzlük: " + fmt(Math.floor(o.count / 100));
     }
 
     var tObj = targetObj();
@@ -484,6 +501,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   /* ---------- Ses tanıma ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var rec = null, listening = false, counted = {}, wakeLock = null;
+  var dbg = { ev: 0, add: 0 }, lastLen = 0, lastEvent = Date.now();
 
   function fold(s) {
     return String(s).toLocaleLowerCase("tr-TR")
@@ -504,25 +522,43 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   var RE_E = /allahu?(?:e|a)kb[ae]r/g;
   var RE_TEV = /ilaheilla(?:ll?ah|allah)/g;
   var RE_RES = /muhammed|muhammet|resul|rasul/;
+  var RE_SLV = /salli|sallal+ah/g;
+  var RE_IST = /est[ae]g?f[iu]r/g;
 
-  function handle(i, text) {
-    var sq = squash(text), n, prev, d;
+  var lastRes = { sq: "", n: {}, final: false, t: 0 };
+
+  /* Android Chrome aynı konuşmayı tekrar eden/birikimli sonuçlar olarak yollar.
+     Bu yüzden yalnızca en son sonuca bakılır ve önceki sonuca göre fark sayılır. */
+  function step(sq, isFinal, now) {
+    var tNow = Date.now(), prev = lastRes, out = {}, keep = {}, k, base, fresh;
+    var ext = prev.sq !== "" && sq.indexOf(prev.sq) === 0;
+    if (prev.sq === "") fresh = true;
+    else if (ext) fresh = (sq === prev.sq && prev.final && tNow - prev.t > 1500);
+    else fresh = prev.final;
+    for (k in now) {
+      base = fresh ? 0 : (prev.n[k] || 0);
+      out[k] = Math.max(0, now[k] - base);
+      keep[k] = fresh ? now[k] : Math.max(base, now[k]);
+    }
+    lastRes = { sq: sq, n: keep, final: isFinal, t: tNow };
+    return out;
+  }
+
+  function handle(text, isFinal) {
+    var sq = squash(text), d;
     if (state.mode === "free") {
-      n = occ(sq, squash(state.free.word));
-      prev = typeof counted[i] === "number" ? counted[i] : 0;
-      if (n > prev) { counted[i] = n; addMain(n - prev); }
+      d = step(sq, isFinal, { c: occ(sq, squash(state.free.word)) });
+      if (d.c) { dbg.add += d.c; addMain(d.c); }
     } else if (state.mode === "tev") {
-      n = matches(RE_TEV, sq);
-      prev = typeof counted[i] === "number" ? counted[i] : 0;
-      if (n > prev) { counted[i] = n; addMain(n - prev); }
+      d = step(sq, isFinal, { c: matches(RE_TEV, sq) });
+      if (d.c) { dbg.add += d.c; addMain(d.c); }
       if (pendingKind && RE_RES.test(sq)) firePending();
+    } else if (state.mode === "slv" || state.mode === "ist") {
+      d = step(sq, isFinal, { c: matches(state.mode === "slv" ? RE_SLV : RE_IST, sq) });
+      if (d.c) { dbg.add += d.c; addMain(d.c); }
     } else {
-      var c = counted[i];
-      if (!c || typeof c !== "object") c = counted[i] = { s: 0, h: 0, e: 0 };
-      var now = { s: matches(RE_S, sq), h: matches(RE_H, sq), e: matches(RE_E, sq) };
-      ["s", "h", "e"].forEach(function (k) {
-        if (now[k] > c[k]) { d = now[k] - c[k]; c[k] = now[k]; addTes(k, d); }
-      });
+      d = step(sq, isFinal, { s: matches(RE_S, sq), h: matches(RE_H, sq), e: matches(RE_E, sq) });
+      ["s", "h", "e"].forEach(function (k) { if (d[k]) { dbg.add += d[k]; addTes(k, d[k]); } });
     }
   }
 
@@ -534,18 +570,31 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   async function lockScreen() { try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
   function unlockScreen() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
 
+  function restartRec() {
+    if (!listening) return;
+    try { startRec(); } catch (err) { setTimeout(restartRec, 1000); }
+  }
+  setInterval(function () {
+    if (listening && Date.now() - lastEvent > 45000) {
+      lastEvent = Date.now();
+      try { rec.stop(); } catch (err) { restartRec(); }
+    }
+  }, 5000);
+
   function startRec() {
     rec = new SR();
     rec.lang = "tr-TR"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
-    counted = {};
+    counted = {}; lastLen = 0; lastEvent = Date.now();
+    lastRes = { sq: "", n: {}, final: false, t: 0 };
     rec.onresult = function (e) {
-      var last = "";
-      for (var i = e.resultIndex; i < e.results.length; i++) {
-        var text = e.results[i][0].transcript;
-        last = text;
-        handle(i, text);
-      }
-      $("live").textContent = last ? "Duyulan: " + last.trim() : "";
+      lastEvent = Date.now();
+      var r = e.results[e.results.length - 1];
+      if (!r) return;
+      var text = r[0].transcript;
+      handle(text, r.isFinal);
+      dbg.ev++;
+      $("live").textContent = text ? "Duyulan: " + text.trim() : "";
+      $("dbg").textContent = "Olay: " + dbg.ev + " · bu oturumda sayılan: " + dbg.add;
     };
     rec.onerror = function (e) {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -559,7 +608,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
       }
     };
     rec.onend = function () {
-      if (listening) setTimeout(function () { if (listening) { try { startRec(); } catch (err) {} } }, 250);
+      if (listening) setTimeout(restartRec, 250);
     };
     rec.start();
   }
@@ -585,6 +634,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   $("mic").addEventListener("click", toggleMic);
   $("plus").addEventListener("click", function () { ctx(); addMain(1); });
   $("minus").addEventListener("click", function () { addMain(-1); });
+  $("tap").addEventListener("click", function () { ctx(); addMain(1); });
   $("countBox").addEventListener("click", function () { ctx(); addMain(1); });
 
   $("tlist").addEventListener("click", function (e) {
