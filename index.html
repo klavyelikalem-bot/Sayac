@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sesli Sayaç (Copy)</title>
+<link href="https://fonts.googleapis.com/css2?family=Amiri:wght@400;700&family=Figtree:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E7EFEA;
+  --surface: #F6FAF7;
+  --ink: #12372F;
+  --muted: #5B7A71;
+  --line: #C3D5CC;
+  --accent: #B26A12;
+  --accent-ink: #FFFFFF;
+  --good: #1E7A55;
+  --bad: #A53A2D;
+  --track: #CFDDD5;
+  color-scheme: light;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E2421; --surface: #153430; --ink: #DDEBE4; --muted: #8FB0A5;
+    --line: #2A4A44; --accent: #E3B050; --accent-ink: #231600;
+    --good: #5FD0A0; --bad: #F08A7B; --track: #234640;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E2421; --surface: #153430; --ink: #DDEBE4; --muted: #8FB0A5;
+  --line: #2A4A44; --accent: #E3B050; --accent-ink: #231600;
+  --good: #5FD0A0; --bad: #F08A7B; --track: #234640;
+  color-scheme: dark;
+}
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Figtree", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.45; -webkit-tap-highlight-color: transparent;
+}
+main { max-width: 460px; margin: 0 auto; padding: 20px 18px 40px; }
+h1 {
+  font-family: "Amiri", Georgia, "Times New Roman", serif;
+  font-size: 2.3rem; font-weight: 700; margin: 4px 0 2px; letter-spacing: 0.01em;
+}
+.sub { margin: 0 0 16px; color: var(--muted); font-size: 0.95rem; }
+
+.tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+  background: var(--track); padding: 5px; border-radius: 16px; margin-bottom: 18px;
+}
+.tab {
+  min-height: 46px; border: 0; border-radius: 12px; background: transparent;
+  color: var(--muted); font: inherit; font-weight: 700; font-size: 0.98rem; cursor: pointer;
+}
+.tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 0 var(--line); }
+
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 14px 16px 16px; }
+.stat .label { font-size: 0.9rem; color: var(--muted); font-weight: 600; }
+.stat .num {
+  font-size: clamp(2.8rem, 15vw, 4.2rem); font-weight: 700; line-height: 1.05;
+  font-variant-numeric: tabular-nums; margin-top: 4px;
+}
+#remainBox .num { color: var(--accent); }
+#remainBox.done .num { color: var(--good); }
+
+.bar { height: 10px; background: var(--track); border-radius: 6px; margin: 14px 2px 6px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0%; background: var(--accent); border-radius: 6px; transition: width .25s ease; }
+.barText { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--muted); margin: 0 2px; }
+.extra { margin: 8px 2px 0; font-size: 0.9rem; color: var(--muted); }
+
+.tlist { display: grid; gap: 10px; }
+.tcard {
+  position: relative; display: flex; overflow: hidden;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
+}
+.tcard.flash { border-color: var(--accent); }
+.tmain {
+  flex: 1; display: grid; grid-template-columns: 1fr auto;
+  grid-template-areas: "name num" "left num"; align-items: center; gap: 2px 12px;
+  text-align: left; padding: 14px 16px 20px; background: none; border: 0;
+  color: inherit; font: inherit; cursor: pointer;
+}
+.tname { grid-area: name; font-weight: 700; font-size: 1.15rem; }
+.tleft { grid-area: left; color: var(--muted); font-size: 0.9rem; }
+.tnum { grid-area: num; font-size: 3rem; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1; }
+.tcard.done .tnum { color: var(--good); }
+.tminus {
+  width: 56px; border: 0; border-left: 1px solid var(--line); background: transparent;
+  color: var(--muted); font: inherit; font-size: 1.4rem; cursor: pointer;
+}
+.tbar { position: absolute; left: 0; right: 0; bottom: 0; height: 6px; background: var(--track); }
+.tbar i { display: block; height: 100%; width: 0%; background: var(--accent); transition: width .25s ease; }
+.tcard.done .tbar i { background: var(--good); }
+.ttotal { margin: 10px 2px 0; font-size: 0.9rem; color: var(--muted); }
+
+.banner {
+  margin: 14px 0 0; padding: 12px 14px; border-radius: 14px;
+  background: var(--surface); border: 1px solid var(--accent); font-weight: 600;
+}
+.banner:empty { display: none; }
+
+.mic {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; margin: 20px 0 10px; min-height: 78px; border: 0; border-radius: 22px;
+  background: var(--accent); color: var(--accent-ink);
+  font: inherit; font-size: 1.25rem; font-weight: 700; cursor: pointer;
+}
+.mic[aria-pressed="true"] { background: var(--bad); color: #fff; }
+.mic:disabled { opacity: .5; cursor: not-allowed; }
+.dot { width: 14px; height: 14px; border-radius: 50%; background: currentColor; }
+.mic[aria-pressed="true"] .dot { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: .45; } }
+
+.live {
+  min-height: 2.6em; margin: 4px 2px 0; font-size: 0.95rem; color: var(--muted);
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
+.msg { margin: 8px 2px 0; font-size: 0.92rem; color: var(--bad); }
+.msg:empty { display: none; }
+
+.row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 18px; }
+.row.one { grid-template-columns: 1fr; }
+.btn {
+  min-height: 54px; border-radius: 14px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); font: inherit; font-size: 1.05rem; font-weight: 600; cursor: pointer;
+}
+.btn.warn[data-armed="true"] { background: var(--bad); color: #fff; border-color: var(--bad); }
+
+.settings { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 16px; }
+.settings h2 { font-size: 1.05rem; margin: 0 0 12px; }
+.field { display: block; margin-bottom: 16px; }
+.field > span, .flabel { display: block; font-size: 0.9rem; color: var(--muted); font-weight: 600; margin-bottom: 6px; }
+input[type="number"], input[type="text"] {
+  width: 100%; min-height: 50px; padding: 0 14px; border: 1px solid var(--line); border-radius: 12px;
+  background: var(--bg); color: var(--ink); font: inherit; font-size: 1.15rem;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chip {
+  min-height: 42px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer;
+}
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.soundrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 600; }
+.check input { width: 22px; height: 22px; accent-color: var(--accent); }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 14px 2px 0; }
+
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) {
+  .mic[aria-pressed="true"] .dot { animation: none; }
+  .bar > i, .tbar i { transition: none; }
+}
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Allah</h1>
+  <p class="sub" id="sub"></p>
+
+  <div class="tabs" role="tablist" aria-label="Sayaç türü">
+    <button class="tab" role="tab" type="button" data-m="free" aria-selected="true">Serbest</button>
+    <button class="tab" role="tab" type="button" data-m="tes" aria-selected="false">Tesbihat</button>
+    <button class="tab" role="tab" type="button" data-m="tev" aria-selected="false">Tevhid</button>
+  </div>
+
+  <section id="viewCounter" aria-label="Sayaç">
+    <div class="stats">
+      <div class="stat" id="countBox">
+        <div class="label">Sayılan</div>
+        <div class="num" id="count">0</div>
+      </div>
+      <div class="stat" id="remainBox">
+        <div class="label" id="remainLabel">Kalan</div>
+        <div class="num" id="remain">1000</div>
+      </div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barWrap"><i id="barFill"></i></div>
+    <div class="barText"><span id="pct">%0</span><span id="targetText">Hedef: 1000</span></div>
+    <div class="extra" id="extra" hidden></div>
+  </section>
+
+  <section id="viewTes" aria-label="Tesbihat" hidden>
+    <div class="tlist" id="tlist"></div>
+    <div class="ttotal" id="ttotal"></div>
+  </section>
+
+  <div class="banner" id="banner" role="status" aria-live="polite"></div>
+
+  <button class="mic" id="mic" aria-pressed="false" type="button">
+    <span class="dot" aria-hidden="true"></span><span id="micText">Dinlemeyi başlat</span>
+  </button>
+  <div class="live" id="live" aria-live="off"></div>
+  <div class="msg" id="msg" role="alert"></div>
+
+  <div class="row" id="row">
+    <button class="btn" id="minus" type="button" aria-label="Bir azalt">−1</button>
+    <button class="btn" id="plus" type="button" aria-label="Bir artır">+1</button>
+    <button class="btn warn" id="reset" type="button">Sıfırla</button>
+  </div>
+
+  <section class="settings" aria-label="Ayarlar">
+    <h2>Ayarlar</h2>
+
+    <label class="field">
+      <span id="targetLabel">Günlük hedef</span>
+      <input type="number" id="target" inputmode="numeric" min="1" max="1000000" step="1" value="1000">
+    </label>
+    <div class="chips" id="chips" role="group" aria-label="Hazır hedefler" style="margin-top:-6px;margin-bottom:16px"></div>
+
+    <label class="field" id="wordField">
+      <span>Sayılacak kelime</span>
+      <input type="text" id="word" value="Allah" autocomplete="off" autocapitalize="off" spellcheck="false">
+    </label>
+
+    <div class="field" id="stepField">
+      <span class="flabel">Kaç taneyde ses çalsın</span>
+      <div class="chips" id="stepChips" role="group" aria-label="Ses aralığı" style="margin-top:0"></div>
+    </div>
+
+    <div class="soundrow">
+      <label class="check"><input type="checkbox" id="sound" checked> Sesli uyarılar</label>
+      <button class="chip" id="try" type="button">Sesi dene</button>
+    </div>
+  </section>
+
+  <p class="hint">Tesbihatta her biri ayrı sayılır; sondan bir önce kısa bir ding, tamamlanınca çan sesi gelir. Tevhid sayacında her 99'da (99, 199, 299…) ding gelir; yüzüncüyü "Muhammedürrasûlullah" ile tamamlayınca çan çalar. Ses tanıma tarayıcıya bağlıdır; yanlış sayarsa −1 / +1 ile düzeltin.</p>
+</main>
+
+<script>
+(function () {
+  var KEY = "sesliSayac.v2", OLD = "sesliSayac.v1";
+  var $ = function (id) { return document.getElementById(id); };
+  function today() {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  }
+  function fmt(n) { return Number(n).toLocaleString("tr-TR"); }
+  function posInt(x, def) { x = Math.floor(Number(x)); return x > 0 ? x : def; }
+  function nonNeg(x) { x = Math.floor(Number(x)); return x >= 0 ? x : 0; }
+
+  var state = {
+    date: today(), mode: "free", sound: true,
+    free: { count: 0, target: 1000, word: "Allah", step: 100 },
+    tes:  { s: 0, h: 0, e: 0, target: 33 },
+    tev:  { count: 0, target: 100 }
+  };
+  var TES = [
+    { k: "s", name: "Sübhanallah" },
+    { k: "h", name: "Elhamdülillah" },
+    { k: "e", name: "Allahu Ekber" }
+  ];
+  var TITLES = { tes: "Tesbihat", tev: "Lâ ilâhe illallah" };
+  var SUBS = {
+    free: "Söylediğiniz kelimeyi sayar. Sayaç her gün sıfırdan başlar.",
+    tes: "Sübhanallah, Elhamdülillah ve Allahu Ekber ayrı ayrı sayılır.",
+    tev: "Her 99'da uyarı gelir; yüzüncüyü Muhammedürrasûlullah ile tamamlayın."
+  };
+
+  function resetCounts() {
+    state.free.count = 0; state.tev.count = 0;
+    state.tes.s = 0; state.tes.h = 0; state.tes.e = 0;
+  }
+  function load() {
+    var s = null;
+    try { var raw = localStorage.getItem(KEY); if (raw) s = JSON.parse(raw); } catch (e) {}
+    if (s && typeof s === "object") {
+      if (s.mode === "free" || s.mode === "tes" || s.mode === "tev") state.mode = s.mode;
+      if (typeof s.sound === "boolean") state.sound = s.sound;
+      var f = s.free || {}, t = s.tes || {}, v = s.tev || {};
+      state.free.target = posInt(f.target, 1000);
+      if (typeof f.word === "string" && f.word.trim()) state.free.word = f.word.trim();
+      state.free.step = (f.step === 0 || f.step === 33 || f.step === 100) ? f.step : 100;
+      state.tes.target = posInt(t.target, 33);
+      state.tev.target = posInt(v.target, 100);
+      if (s.date === today()) {
+        state.free.count = nonNeg(f.count); state.tev.count = nonNeg(v.count);
+        state.tes.s = nonNeg(t.s); state.tes.h = nonNeg(t.h); state.tes.e = nonNeg(t.e);
+      }
+      return;
+    }
+    try {
+      var old = localStorage.getItem(OLD);
+      if (old) {
+        var o = JSON.parse(old);
+        state.free.target = posInt(o.target, 1000);
+        if (typeof o.word === "string" && o.word.trim()) state.free.word = o.word.trim();
+        if (o.date === today()) state.free.count = nonNeg(o.count);
+      }
+    } catch (e) {}
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function rollDate() { if (state.date !== today()) { state.date = today(); resetCounts(); } }
+
+  /* ---------- Ses ---------- */
+  var ac = null;
+  function ctx() {
+    if (!ac) { var C = window.AudioContext || window.webkitAudioContext; if (C) { try { ac = new C(); } catch (e) {} } }
+    if (ac && ac.state === "suspended") { try { ac.resume(); } catch (e) {} }
+    return ac;
+  }
+  function tone(freq, t0, dur, vol) {
+    var c = ctx(); if (!c) return;
+    var o = c.createOscillator(), g = c.createGain(), t = c.currentTime + t0;
+    o.type = "sine"; o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) {} }
+  function play(kind) {
+    if (!state.sound) return;
+    if (kind === "ding") { tone(1000, 0, 0.16, 0.3); buzz(80); }
+    else if (kind === "chime") { tone(784, 0, 0.22, 0.35); tone(1047, 0.2, 0.5, 0.35); buzz([120, 60, 120]); }
+    else if (kind === "fanfare") {
+      tone(523, 0, 0.18, 0.35); tone(659, 0.16, 0.18, 0.35); tone(784, 0.32, 0.18, 0.35); tone(1047, 0.48, 0.8, 0.4);
+      buzz([200, 100, 200, 100, 300]);
+    }
+  }
+
+  var bannerTimer = null;
+  function banner(text, ms) {
+    $("banner").textContent = text || "";
+    clearTimeout(bannerTimer);
+    if (text) bannerTimer = setTimeout(function () { $("banner").textContent = ""; }, ms || 6000);
+  }
+
+  /* ---------- Sayaç mantığı ---------- */
+  var RANK = { ding: 1, chime: 2, fanfare: 3 };
+  function better(a, b) { return (RANK[b] || 0) > (RANK[a] || 0) ? b : a; }
+
+  var pendingKind = null, pendingMsg = "", pendingTimer = null;
+  function firePending() {
+    if (!pendingKind) return;
+    clearTimeout(pendingTimer);
+    play(pendingKind);
+    banner(pendingMsg, 5000);
+    pendingKind = null;
+  }
+
+  function mainObj() { return state.mode === "tev" ? state.tev : state.free; }
+
+  function addMain(n) {
+    rollDate();
+    var o = mainObj(), before = o.count;
+    o.count = Math.max(0, before + n);
+    if (n > 0) mainFeedback(o, before, o.count);
+    save(); render();
+  }
+  function mainFeedback(o, from, to) {
+    var tev = state.mode === "tev";
+    var step = tev ? 100 : o.step;
+    var kind = null, msg = "", v;
+    if (o.target > 0 && from < o.target && to >= o.target) { kind = "fanfare"; msg = "Hedef tamam: " + fmt(o.target); }
+    if (step > 0) {
+      for (v = from + 1; v <= to; v++) {
+        if (v % step === 0) { if (RANK.chime > (RANK[kind] || 0)) { kind = "chime"; msg = fmt(v) + " tamam"; } }
+        else if (v % step === step - 1) { if (!kind) { kind = "ding"; msg = fmt(v) + " — bir kaldı"; } }
+      }
+    }
+    if (!kind) return;
+    if (tev && Math.floor(to / 100) > Math.floor(from / 100)) {
+      var hundred = Math.floor(to / 100) * 100;
+      pendingKind = kind;
+      pendingMsg = kind === "fanfare" ? "Hedef tamam: " + fmt(o.target) : fmt(hundred) + " tamam";
+      clearTimeout(pendingTimer);
+      pendingTimer = setTimeout(firePending, 6000);
+      banner(fmt(hundred) + " — Muhammedürrasûlullah ile tamamlayın", 8000);
+      return;
+    }
+    if (tev && kind === "ding") msg = fmt(to) + " — sıradaki yüzüncü, uzun söyleyin";
+    play(kind); banner(msg);
+  }
+
+  function tesDone(t, overrideKey, overrideVal) {
+    return TES.every(function (x) { return (x.k === overrideKey ? overrideVal : t[x.k]) >= t.target; });
+  }
+  function addTes(k, n) {
+    rollDate();
+    var t = state.tes, T = t.target, before = t[k];
+    var prevAll = tesDone(t);
+    t[k] = Math.max(0, before + n);
+    var name = TES.filter(function (x) { return x.k === k; })[0].name;
+    if (n > 0) {
+      var kind = null, v;
+      for (v = before + 1; v <= t[k]; v++) {
+        if (v % T === 0) kind = better(kind, "chime");
+        else if (v % T === T - 1) kind = better(kind, "ding");
+      }
+      var msg = "";
+      if (kind === "chime") msg = name + " " + fmt(t[k]) + " tamam";
+      else if (kind === "ding") msg = name + " — bir kaldı";
+      if (!prevAll && tesDone(t)) { kind = "fanfare"; msg = "Tesbihat tamam: " + fmt(t.s + t.h + t.e); }
+      if (kind) { play(kind); banner(msg); }
+    }
+    flash(k);
+    save(); render();
+  }
+  function flash(k) {
+    var el = $("tc_" + k); if (!el) return;
+    el.classList.add("flash");
+    setTimeout(function () { el.classList.remove("flash"); }, 250);
+  }
+
+  /* ---------- Görünüm ---------- */
+  var CHIPS = { free: [33, 99, 100, 500, 1000], tes: [33, 34, 100], tev: [100, 300, 500, 1000] };
+
+  function targetObj() { return state.mode === "tes" ? state.tes : (state.mode === "tev" ? state.tev : state.free); }
+
+  function buildTes() {
+    $("tlist").innerHTML = TES.map(function (x) {
+      return '<div class="tcard" id="tc_' + x.k + '">' +
+        '<button class="tmain" type="button" data-k="' + x.k + '" aria-label="' + x.name + ' bir artır">' +
+        '<span class="tname">' + x.name + '</span>' +
+        '<span class="tleft" id="tl_' + x.k + '"></span>' +
+        '<span class="tnum" id="tn_' + x.k + '">0</span></button>' +
+        '<button class="tminus" type="button" data-k="' + x.k + '" aria-label="' + x.name + ' bir azalt">−</button>' +
+        '<div class="tbar"><i id="tb_' + x.k + '"></i></div></div>';
+    }).join("");
+  }
+
+  function render() {
+    var m = state.mode, i;
+    var tabs = document.querySelectorAll(".tab");
+    for (i = 0; i < tabs.length; i++) tabs[i].setAttribute("aria-selected", String(tabs[i].dataset.m === m));
+
+    $("title").textContent = m === "free" ? state.free.word : TITLES[m];
+    $("sub").textContent = SUBS[m];
+    $("viewCounter").hidden = (m === "tes");
+    $("viewTes").hidden = (m !== "tes");
+    $("plus").hidden = $("minus").hidden = (m === "tes");
+    $("row").classList.toggle("one", m === "tes");
+    $("wordField").hidden = (m !== "free");
+    $("stepField").hidden = (m !== "free");
+    $("targetLabel").textContent = m === "tes" ? "Her biri için sayı" : "Günlük hedef";
+
+    if (m === "tes") {
+      var t = state.tes, T = t.target;
+      TES.forEach(function (x) {
+        var c = t[x.k];
+        $("tn_" + x.k).textContent = c;
+        $("tl_" + x.k).textContent = c >= T ? (c > T ? "tamam, fazla: " + (c - T) : "tamam") : "kalan " + (T - c);
+        $("tb_" + x.k).style.width = Math.min(100, Math.floor((c / T) * 100)) + "%";
+        $("tc_" + x.k).classList.toggle("done", c >= T);
+      });
+      $("ttotal").textContent = "Toplam: " + fmt(t.s + t.h + t.e) + " / " + fmt(T * 3);
+    } else {
+      var o = mainObj();
+      var remain = Math.max(0, o.target - o.count);
+      var pct = Math.min(100, Math.floor((o.count / o.target) * 100));
+      var done = o.count >= o.target;
+      $("count").textContent = fmt(o.count);
+      $("remain").textContent = fmt(remain);
+      $("targetText").textContent = "Hedef: " + fmt(o.target);
+      $("pct").textContent = "%" + pct;
+      $("barFill").style.width = pct + "%";
+      $("barWrap").setAttribute("aria-valuenow", String(pct));
+      $("remainBox").classList.toggle("done", done);
+      $("remainLabel").textContent = done ? (o.count > o.target ? "Hedef tamam, fazla: " + fmt(o.count - o.target) : "Hedef tamam") : "Kalan";
+      $("extra").hidden = (m !== "tev");
+      if (m === "tev") $("extra").textContent = "Tamamlanan yüzlük: " + fmt(Math.floor(o.count / 100));
+    }
+
+    var tObj = targetObj();
+    $("chips").innerHTML = CHIPS[m].map(function (v) {
+      return '<button class="chip" type="button" data-v="' + v + '" aria-pressed="' + (tObj.target === v) + '">' + v + '</button>';
+    }).join("");
+    $("stepChips").innerHTML = [[33, "33"], [100, "100"], [0, "Kapalı"]].map(function (p) {
+      return '<button class="chip" type="button" data-s="' + p[0] + '" aria-pressed="' + (state.free.step === p[0]) + '">' + p[1] + '</button>';
+    }).join("");
+    if (document.activeElement !== $("target")) $("target").value = tObj.target;
+    $("sound").checked = state.sound;
+  }
+
+  /* ---------- Ses tanıma ---------- */
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var rec = null, listening = false, counted = {}, wakeLock = null;
+
+  function fold(s) {
+    return String(s).toLocaleLowerCase("tr-TR")
+      .replace(/[âäà]/g, "a").replace(/[îı]/g, "i").replace(/[ûü]/g, "u")
+      .replace(/ö/g, "o").replace(/ş/g, "s").replace(/ç/g, "c").replace(/ğ/g, "g");
+  }
+  function squash(s) { return fold(s).replace(/[^a-z0-9]/g, ""); }
+  function occ(text, w) {
+    if (!w) return 0;
+    var n = 0, i = 0;
+    while ((i = text.indexOf(w, i)) !== -1) { n++; i += w.length; }
+    return n;
+  }
+  function matches(re, text) { var r = text.match(re); return r ? r.length : 0; }
+
+  var RE_S = /subhanalla/g;
+  var RE_H = /hamdu?lil+ah/g;
+  var RE_E = /allahu?(?:e|a)kb[ae]r/g;
+  var RE_TEV = /ilaheilla(?:ll?ah|allah)/g;
+  var RE_RES = /muhammed|muhammet|resul|rasul/;
+
+  function handle(i, text) {
+    var sq = squash(text), n, prev, d;
+    if (state.mode === "free") {
+      n = occ(sq, squash(state.free.word));
+      prev = typeof counted[i] === "number" ? counted[i] : 0;
+      if (n > prev) { counted[i] = n; addMain(n - prev); }
+    } else if (state.mode === "tev") {
+      n = matches(RE_TEV, sq);
+      prev = typeof counted[i] === "number" ? counted[i] : 0;
+      if (n > prev) { counted[i] = n; addMain(n - prev); }
+      if (pendingKind && RE_RES.test(sq)) firePending();
+    } else {
+      var c = counted[i];
+      if (!c || typeof c !== "object") c = counted[i] = { s: 0, h: 0, e: 0 };
+      var now = { s: matches(RE_S, sq), h: matches(RE_H, sq), e: matches(RE_E, sq) };
+      ["s", "h", "e"].forEach(function (k) {
+        if (now[k] > c[k]) { d = now[k] - c[k]; c[k] = now[k]; addTes(k, d); }
+      });
+    }
+  }
+
+  function setMsg(t) { $("msg").textContent = t || ""; }
+  function setMicUI() {
+    $("mic").setAttribute("aria-pressed", String(listening));
+    $("micText").textContent = listening ? "Dinleniyor… Durdur" : "Dinlemeyi başlat";
+  }
+  async function lockScreen() { try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
+  function unlockScreen() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
+
+  function startRec() {
+    rec = new SR();
+    rec.lang = "tr-TR"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
+    counted = {};
+    rec.onresult = function (e) {
+      var last = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var text = e.results[i][0].transcript;
+        last = text;
+        handle(i, text);
+      }
+      $("live").textContent = last ? "Duyulan: " + last.trim() : "";
+    };
+    rec.onerror = function (e) {
+      if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+        listening = false; setMicUI(); unlockScreen();
+        setMsg("Mikrofon izni alınamadı. Tarayıcı ayarlarından izin verin; olmazsa bu sayfayı doğrudan Chrome veya Safari'de açın.");
+      } else if (e.error === "network") {
+        setMsg("Ses tanıma için internet bağlantısı gerekiyor.");
+      } else if (e.error === "audio-capture") {
+        listening = false; setMicUI(); unlockScreen();
+        setMsg("Mikrofon bulunamadı.");
+      }
+    };
+    rec.onend = function () {
+      if (listening) setTimeout(function () { if (listening) { try { startRec(); } catch (err) {} } }, 250);
+    };
+    rec.start();
+  }
+  function toggleMic() {
+    ctx();
+    if (!SR) return;
+    setMsg("");
+    if (listening) {
+      listening = false;
+      try { rec.onend = null; rec.stop(); } catch (e) {}
+      unlockScreen(); setMicUI(); $("live").textContent = "";
+    } else {
+      listening = true;
+      try { startRec(); lockScreen(); } catch (e) { listening = false; setMsg("Dinleme başlatılamadı."); }
+      setMicUI();
+    }
+  }
+  document.addEventListener("visibilitychange", function () {
+    if (listening && document.visibilityState === "visible") lockScreen();
+  });
+
+  /* ---------- Olaylar ---------- */
+  $("mic").addEventListener("click", toggleMic);
+  $("plus").addEventListener("click", function () { ctx(); addMain(1); });
+  $("minus").addEventListener("click", function () { addMain(-1); });
+  $("countBox").addEventListener("click", function () { ctx(); addMain(1); });
+
+  $("tlist").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    ctx();
+    addTes(b.dataset.k, b.classList.contains("tminus") ? -1 : 1);
+  });
+
+  document.querySelector(".tabs").addEventListener("click", function (e) {
+    var b = e.target.closest(".tab"); if (!b || b.dataset.m === state.mode) return;
+    state.mode = b.dataset.m;
+    pendingKind = null; clearTimeout(pendingTimer);
+    banner("");
+    save(); render();
+    if (listening) { try { rec.stop(); } catch (err) {} }
+  });
+
+  var armTimer = null;
+  $("reset").addEventListener("click", function () {
+    var b = $("reset");
+    if (b.dataset.armed === "true") {
+      clearTimeout(armTimer);
+      b.dataset.armed = "false"; b.textContent = "Sıfırla";
+      if (state.mode === "tes") { state.tes.s = 0; state.tes.h = 0; state.tes.e = 0; }
+      else mainObj().count = 0;
+      pendingKind = null; clearTimeout(pendingTimer); banner("");
+      save(); render();
+    } else {
+      b.dataset.armed = "true"; b.textContent = "Emin misiniz?";
+      armTimer = setTimeout(function () { b.dataset.armed = "false"; b.textContent = "Sıfırla"; }, 3000);
+    }
+  });
+
+  $("target").addEventListener("input", function () {
+    var v = Math.floor(Number($("target").value));
+    if (v > 0 && v <= 1000000) { targetObj().target = v; save(); render(); }
+  });
+  $("target").addEventListener("blur", function () { $("target").value = targetObj().target; });
+  $("chips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    targetObj().target = Number(b.dataset.v); save(); render();
+  });
+  $("stepChips").addEventListener("click", function (e) {
+    var b = e.target.closest(".chip"); if (!b) return;
+    state.free.step = Number(b.dataset.s); save(); render();
+  });
+  $("word").addEventListener("input", function () {
+    var w = $("word").value.trim();
+    if (w) { state.free.word = w; save(); render(); }
+  });
+  $("sound").addEventListener("change", function () { state.sound = $("sound").checked; save(); ctx(); });
+  $("try").addEventListener("click", function () {
+    ctx();
+    var was = state.sound; state.sound = true;
+    play("ding"); setTimeout(function () { play("chime"); }, 700);
+    setTimeout(function () { state.sound = was; }, 1200);
+  });
+
+  /* ---------- Başlangıç ---------- */
+  load();
+  buildTes();
+  $("word").value = state.free.word;
+  if (!SR) {
+    $("mic").disabled = true;
+    $("micText").textContent = "Bu tarayıcı sesi tanımıyor";
+    setMsg("Ses tanıma bu tarayıcıda yok. Chrome veya Safari kullanın; bu arada elle sayabilirsiniz.");
+  }
+  setMicUI();
+  render();
+})();
+</script>
+</body>
+</html>
