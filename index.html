@@ -207,7 +207,6 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
     <span class="dot" aria-hidden="true"></span><span id="micText">Dinlemeyi başlat</span>
   </button>
   <div class="live" id="live" aria-live="off"></div>
-  <div class="extra" id="dbg" style="margin-top:0"></div>
   <div class="msg" id="msg" role="alert"></div>
 
   <div class="row" id="row">
@@ -501,7 +500,6 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   /* ---------- Ses tanıma ---------- */
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   var rec = null, listening = false, counted = {}, wakeLock = null;
-  var dbg = { ev: 0, add: 0 }, lastLen = 0, lastEvent = Date.now();
 
   function fold(s) {
     return String(s).toLocaleLowerCase("tr-TR")
@@ -525,40 +523,28 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   var RE_SLV = /salli|sallal+ah/g;
   var RE_IST = /est[ae]g?f[iu]r/g;
 
-  var lastRes = { sq: "", n: {}, final: false, t: 0 };
-
-  /* Android Chrome aynı konuşmayı tekrar eden/birikimli sonuçlar olarak yollar.
-     Bu yüzden yalnızca en son sonuca bakılır ve önceki sonuca göre fark sayılır. */
-  function step(sq, isFinal, now) {
-    var tNow = Date.now(), prev = lastRes, out = {}, keep = {}, k, base, fresh;
-    var ext = prev.sq !== "" && sq.indexOf(prev.sq) === 0;
-    if (prev.sq === "") fresh = true;
-    else if (ext) fresh = (sq === prev.sq && prev.final && tNow - prev.t > 1500);
-    else fresh = prev.final;
-    for (k in now) {
-      base = fresh ? 0 : (prev.n[k] || 0);
-      out[k] = Math.max(0, now[k] - base);
-      keep[k] = fresh ? now[k] : Math.max(base, now[k]);
-    }
-    lastRes = { sq: sq, n: keep, final: isFinal, t: tNow };
-    return out;
-  }
-
-  function handle(text, isFinal) {
-    var sq = squash(text), d;
+  function handle(i, text) {
+    var sq = squash(text), n, prev, d;
     if (state.mode === "free") {
-      d = step(sq, isFinal, { c: occ(sq, squash(state.free.word)) });
-      if (d.c) { dbg.add += d.c; addMain(d.c); }
+      n = occ(sq, squash(state.free.word));
+      prev = typeof counted[i] === "number" ? counted[i] : 0;
+      if (n > prev) { counted[i] = n; addMain(n - prev); }
     } else if (state.mode === "tev") {
-      d = step(sq, isFinal, { c: matches(RE_TEV, sq) });
-      if (d.c) { dbg.add += d.c; addMain(d.c); }
+      n = matches(RE_TEV, sq);
+      prev = typeof counted[i] === "number" ? counted[i] : 0;
+      if (n > prev) { counted[i] = n; addMain(n - prev); }
       if (pendingKind && RE_RES.test(sq)) firePending();
     } else if (state.mode === "slv" || state.mode === "ist") {
-      d = step(sq, isFinal, { c: matches(state.mode === "slv" ? RE_SLV : RE_IST, sq) });
-      if (d.c) { dbg.add += d.c; addMain(d.c); }
+      n = matches(state.mode === "slv" ? RE_SLV : RE_IST, sq);
+      prev = typeof counted[i] === "number" ? counted[i] : 0;
+      if (n > prev) { counted[i] = n; addMain(n - prev); }
     } else {
-      d = step(sq, isFinal, { s: matches(RE_S, sq), h: matches(RE_H, sq), e: matches(RE_E, sq) });
-      ["s", "h", "e"].forEach(function (k) { if (d[k]) { dbg.add += d[k]; addTes(k, d[k]); } });
+      var c = counted[i];
+      if (!c || typeof c !== "object") c = counted[i] = { s: 0, h: 0, e: 0 };
+      var now = { s: matches(RE_S, sq), h: matches(RE_H, sq), e: matches(RE_E, sq) };
+      ["s", "h", "e"].forEach(function (k) {
+        if (now[k] > c[k]) { d = now[k] - c[k]; c[k] = now[k]; addTes(k, d); }
+      });
     }
   }
 
@@ -570,31 +556,18 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
   async function lockScreen() { try { if (navigator.wakeLock) wakeLock = await navigator.wakeLock.request("screen"); } catch (e) {} }
   function unlockScreen() { try { if (wakeLock) { wakeLock.release(); wakeLock = null; } } catch (e) {} }
 
-  function restartRec() {
-    if (!listening) return;
-    try { startRec(); } catch (err) { setTimeout(restartRec, 1000); }
-  }
-  setInterval(function () {
-    if (listening && Date.now() - lastEvent > 45000) {
-      lastEvent = Date.now();
-      try { rec.stop(); } catch (err) { restartRec(); }
-    }
-  }, 5000);
-
   function startRec() {
     rec = new SR();
     rec.lang = "tr-TR"; rec.continuous = true; rec.interimResults = true; rec.maxAlternatives = 1;
-    counted = {}; lastLen = 0; lastEvent = Date.now();
-    lastRes = { sq: "", n: {}, final: false, t: 0 };
+    counted = {};
     rec.onresult = function (e) {
-      lastEvent = Date.now();
-      var r = e.results[e.results.length - 1];
-      if (!r) return;
-      var text = r[0].transcript;
-      handle(text, r.isFinal);
-      dbg.ev++;
-      $("live").textContent = text ? "Duyulan: " + text.trim() : "";
-      $("dbg").textContent = "Olay: " + dbg.ev + " · bu oturumda sayılan: " + dbg.add;
+      var last = "";
+      for (var i = e.resultIndex; i < e.results.length; i++) {
+        var text = e.results[i][0].transcript;
+        last = text;
+        handle(i, text);
+      }
+      $("live").textContent = last ? "Duyulan: " + last.trim() : "";
     };
     rec.onerror = function (e) {
       if (e.error === "not-allowed" || e.error === "service-not-allowed") {
@@ -608,7 +581,7 @@ button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); ou
       }
     };
     rec.onend = function () {
-      if (listening) setTimeout(restartRec, 250);
+      if (listening) setTimeout(function () { if (listening) { try { startRec(); } catch (err) {} } }, 250);
     };
     rec.start();
   }
